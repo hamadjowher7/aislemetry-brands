@@ -43,8 +43,8 @@
   }
   buttons.forEach(button=>{button.addEventListener('click',()=>selectExample(button.dataset.insight));button.addEventListener('keydown',event=>{if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(event.key))return;event.preventDefault();const index=buttons.indexOf(button),next=event.key==='Home'?0:event.key==='End'?buttons.length-1:(index+(['ArrowLeft','ArrowUp'].includes(event.key)?-1:1)+buttons.length)%buttons.length;selectExample(buttons[next].dataset.insight,true);});});
   const booking=bookingState(root.AISLEMETRY_WEBSITE);
-  const primary=doc.querySelector('#booking-primary');primary.href=booking.calendar||booking.mailto;if(booking.calendar)primary.firstChild.textContent='Choose a time to talk ';if(booking.calendar){primary.target='_blank';primary.rel='noopener noreferrer';}
-  ['booking-email','booking-calendar-email'].forEach(id=>{const link=doc.getElementById(id);link.href=booking.mailto;if(id==='booking-email')link.textContent=booking.email;});
-  if(booking.embed){doc.querySelector('#booking-email-panel').hidden=true;doc.querySelector('#booking-calendar-panel').hidden=false;const frame=doc.createElement('iframe');frame.src=booking.embed;frame.title='Book an Aislemetry introductory call';frame.loading='lazy';frame.referrerPolicy='strict-origin-when-cross-origin';doc.getElementById('booking-calendar-frame').append(frame);doc.getElementById('booking-calendar-link').href=booking.calendar;}
+  doc.querySelectorAll('[data-booking-link]').forEach(link=>{link.href=booking.calendar||booking.mailto;if(booking.calendar){link.target='_blank';link.rel='noopener noreferrer';}});
+  const primary=doc.querySelector('#booking-primary');primary.firstChild.textContent=booking.calendar?'Book a call ':'Arrange a call by email ';
+  doc.getElementById('booking-email').href=booking.mailto;
   doc.getElementById('copyright-year').textContent=String(new Date().getFullYear());
 })(typeof window!=='undefined'?window:globalThis);

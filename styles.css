@@ -41,3 +41,5 @@
 @media(max-width:700px){.catalog-story{grid-template-columns:1fr;gap:35px}.catalog-story-copy{order:-1}.catalog-learning-steps h3{font-size:17px}.catalog-learning-steps p{font-size:14px}.catalog-story-copy>p:not(.eyebrow){font-size:16px}.catalog-photo-box>span{font-size:9px}.catalog-photo-caption{font-size:10px}.catalog-reference-tags{padding:0 18px 18px}.catalog-reference-tags span{font-size:11px}}
 
 .catalog-photo-brand{left:42%;top:39%;width:16%;height:7%}.catalog-photo-variant{left:41%;top:52%;width:18%;height:5%}.catalog-photo-volume{left:47%;top:77%;width:7%;height:4%}
+
+.booking-card .booking-new-tab{font-size:12px;line-height:1.7;color:#6d7e6c;margin-top:14px}.booking-card #booking-email-panel>p:not(.booking-direct):not(.booking-new-tab){font-size:16px;line-height:1.8}.booking-card #booking-primary{font-size:15px}
