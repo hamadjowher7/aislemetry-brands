@@ -14,7 +14,15 @@
   const countBoxes=index===1?[[32,3,37,26,'Daily · 6 facings'],[9,37,30,25,'Daily · 5 facings'],[26,68,31,25,'Daily · 5 facings']]:[[32,3,31,26,'Daily · 5 facings'],[5,35,42,26,'Daily · 6 facings'],[25,67,32,25,'Daily · 5 facings']];
   return {image,alt:stores[index].city+' store example: '+c.alt,fact:key==='count'&&index>0?'16 Verde Daily facings visible':c.fact,boxes:key==='count'&&index>0?countBoxes:c.boxes};
  }
- if(typeof module==='object'&&module.exports){module.exports={cases,stores,photoForStore,evidenceForStore};return;}
+ function createPhotoPresenter({load,commit,setBusy,showError}){
+  let version=0;
+  return async(evidence,context)=>{
+   const request=++version;setBusy(true);
+   try{const photo=await load(evidence.image);if(request!==version)return false;commit(photo,evidence,context);setBusy(false);return true;}
+   catch(error){if(request!==version)return false;setBusy(false);showError(error);return false;}
+  };
+ }
+ if(typeof module==='object'&&module.exports){module.exports={cases,stores,photoForStore,evidenceForStore,createPhotoPresenter};return;}
  const doc=root.document;if(!doc)return;
  const tabs=[...doc.querySelectorAll('[data-ai]')],panel=doc.getElementById('ai-panel'),overlay=doc.getElementById('ai-photo-overlay'),toggle=doc.getElementById('ai-photo-toggle');
  let active='count',selected=0,analysis=true;
@@ -23,14 +31,40 @@
   overlay.replaceChildren(...boxes.map(([x,y,w,h,label,tone])=>{const box=doc.createElement('div'),tag=doc.createElement('span');box.className='ai-box '+(tone||'');Object.assign(box.style,{left:x+'%',top:y+'%',width:w+'%',height:h+'%'});tag.textContent=label;box.append(tag);return box;}));
   const brief=doc.createElement('div');brief.className='ai-reference';brief.textContent=c.standard;overlay.append(brief);
  }
- function renderStore(){
-  const c=cases[active],s=stores[selected];
-  const evidence=evidenceForStore(active,selected),img=doc.getElementById('ai-evidence-image');img.src=evidence.image;img.alt=evidence.alt;
-  renderOverlay(c,evidence.boxes);
-  doc.getElementById('ai-finding-details').open=false;
-  set('ai-store-title',s.name+' · '+s.city);set('ai-store-detail',c.detail);set('ai-photo-fact',evidence.fact);set('ai-next-action',c.action+' Owner: '+s.owner+'.');
-  [...doc.querySelectorAll('[data-ai-store]')].forEach((b,i)=>b.setAttribute('aria-pressed',String(i===selected)));
+ const photoCache=new Map(),photoFrame=doc.querySelector('.ai-photo'),photoStatus=doc.getElementById('ai-photo-status'),enlarge=doc.getElementById('ai-enlarge');
+ function loadPhoto(src,priority='high'){
+  if(photoCache.has(src)){const cached=photoCache.get(src);if(priority==='high')cached.image.fetchPriority='high';return cached.ready;}
+  const image=new root.Image();image.fetchPriority=priority;image.decoding='async';
+  const ready=new Promise((resolve,reject)=>{image.onload=async()=>{try{if(image.decode)await image.decode();resolve(image);}catch(error){reject(error);}};image.onerror=()=>reject(new Error('Unable to load evidence photo.'));});
+  photoCache.set(src,{image,ready});ready.catch(()=>photoCache.delete(src));image.src=src;return ready;
  }
+ const presentPhoto=createPhotoPresenter({
+  load:src=>loadPhoto(src),
+  setBusy:busy=>{photoFrame.setAttribute('aria-busy',String(busy));enlarge.disabled=busy;photoStatus.hidden=!busy;if(busy)photoStatus.textContent='Loading photo…';},
+  showError:()=>{photoStatus.hidden=false;photoStatus.textContent='Photo unavailable. Select the store again to retry.';enlarge.disabled=true;},
+  commit:(photo,evidence,{c,s})=>{
+   photo.id='ai-evidence-image';photo.alt=evidence.alt;photo.width=1536;photo.height=1024;
+   doc.getElementById('ai-evidence-image').replaceWith(photo);
+   renderOverlay(c,evidence.boxes);
+   set('ai-store-title',s.name+' · '+s.city);set('ai-store-detail',c.detail);set('ai-photo-fact',evidence.fact);set('ai-next-action',c.action+' Owner: '+s.owner+'.');
+  }
+ });
+ function renderStore(){
+  const c=cases[active],s=stores[selected],evidence=evidenceForStore(active,selected);
+  doc.getElementById('ai-finding-details').open=false;
+  [...doc.querySelectorAll('[data-ai-store]')].forEach((b,i)=>b.setAttribute('aria-pressed',String(i===selected)));
+  presentPhoto(evidence,{c,s});
+ }
+ // Warm the selected capability on intent; preload the remaining examples only
+ // when the section approaches the viewport, with at most two background loads.
+ function warmCapability(key){stores.forEach((_,i)=>{loadPhoto(photoForStore(key,i),'low').catch(()=>{});});}
+ tabs.forEach(b=>{b.addEventListener('pointerenter',()=>warmCapability(b.dataset.ai));b.addEventListener('focus',()=>warmCapability(b.dataset.ai));});
+ function warmExamples(){
+  const queue=Object.keys(cases).flatMap(key=>stores.map((_,i)=>photoForStore(key,i)));
+  async function worker(){while(queue.length){const src=queue.shift();try{await loadPhoto(src,'low');}catch{}}}
+  worker();worker();
+ }
+ if(root.IntersectionObserver){const observer=new root.IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting)){observer.disconnect();warmExamples();}},{rootMargin:'300px'});observer.observe(doc.getElementById('aislemetry-ai'));}
  function render(key,focus=false){
   active=key;selected=0;const c=cases[key];
   tabs.forEach(b=>{const on=b.dataset.ai===key;b.setAttribute('aria-selected',String(on));b.tabIndex=on?0:-1;});panel.setAttribute('aria-labelledby','ai-tab-'+key);
